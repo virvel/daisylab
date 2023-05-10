@@ -2,7 +2,8 @@
 TARGET = daisylab
 
 # Sources
-CPP_SOURCES = daisylab.cpp
+CPP_SOURCES = daisylab.cpp dsp-headers/dsp/wavetable.cpp dsp-headers/dsp/interpolation.cpp
+
 
 # Library Locations
 LIBDAISY_DIR = ../DaisyExamples/libDaisy/
