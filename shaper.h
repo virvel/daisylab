@@ -6,14 +6,12 @@
 
 namespace daisysp {
 
-    // Implementation of the LUT, in one shot!
     template<std::size_t Length, typename Generator, std::size_t... Indexes>
     constexpr auto lut_impl(Generator&& f, std::index_sequence<Indexes...>) {
         using content_type = decltype(f(std::size_t{0}));
         return std::array<content_type, Length> {{ f(Indexes)... }};
     }
 
-    // Our lookup table function
     template<std::size_t Length, typename Generator>
     constexpr auto lut(Generator&& f){
         return lut_impl<Length>(std::forward<Generator>(f), std::make_index_sequence<Length>{});
