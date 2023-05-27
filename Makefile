@@ -2,7 +2,8 @@
 TARGET = daisylab
 
 # Sources
-CPP_SOURCES = daisylab.cpp dsp-headers/dsp/wavetable.cpp dsp-headers/dsp/interpolation.cpp
+CPP_SOURCES = daisylab.cpp dsp-headers/dsp/wavetable.cpp dsp-headers/dsp/interpolation.cpp knot.cpp
+CPP_FLAGS = -std=c++17
 
 
 # Library Locations
