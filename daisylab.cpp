@@ -48,14 +48,18 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 void UpdateOled()
 {
     hw.display.Fill(false);
+    
+    const float * ws = shaper.getWeights();
+    const float * ws2 = shaper2.getWeights();
 
     std::string str  = std::to_string(int(freq));
     char*       cstr = &str[0];
     hw.display.SetCursor(0, 0);
     hw.display.WriteString(cstr, Font_7x10, true);
     
-    for (int i = 0; i < 1024; ++i) {
-       hw.display.DrawPixel(positions[i][0], 50-positions[i][1], true);    
+    for (int i = 0; i < 8; ++i) {
+       hw.display.DrawLine(i*16, 32, i*16, 16-ws[i]*16, true);    
+       hw.display.DrawLine(i*16, 64, i*16, 48-ws2[i]*48, true);    
     }
 
     hw.display.Update();
@@ -69,8 +73,8 @@ void UpdateControls()
     float ctrl = hw.GetKnobValue((DaisyPatch::Ctrl)0);
     freq = powf(2.f,6.0f*ctrl) * 50.f + 30.f; //Hz
     wt.setFreq(freq);
-    x = hw.GetKnobValue((DaisyPatch::Ctrl)1)*0.5 + prevx*0.5;
-    y = hw.GetKnobValue((DaisyPatch::Ctrl)2)*0.5 + prevx*0.5;
+    x = hw.GetKnobValue((DaisyPatch::Ctrl)1);
+    y = hw.GetKnobValue((DaisyPatch::Ctrl)2);
     shaper.setWeight(1, x);
     shaper.setWeight(3, y); 
     k = (k+1)%1024;

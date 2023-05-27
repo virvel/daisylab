@@ -50,6 +50,7 @@ namespace daisysp {
             void init();
             float process(float in);
             void setWeight(int n, float w);
+            const float * getWeights() const;
         private:
         
             std::array<float,8> weights;
@@ -61,6 +62,11 @@ namespace daisysp {
     void Shaper<N>::init() {
         weights = {1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f};
         m_inv_sum = std::accumulate(weights.begin(), weights.end(), 0.f);
+    }
+
+    template <size_t N>
+    const float * Shaper<N>::getWeights() const {
+            return weights.data(); 
     }
 
     template <size_t N>
