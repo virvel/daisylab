@@ -10,17 +10,10 @@ using namespace daisysp;
 
 
 void UpdateControls();
-const int sampleRate = 48000;
 
 DaisyPatch hw;
 
-float x = 0.f;
-float y = 0.f;
 float freq = 440.f;
-int positions[1024][2];
-int k = 0;
-float prevx = 0.f;
-float prevy = 0.f;
 
 Oscillator osc;
 Shaper<1024> shaper;
@@ -28,6 +21,9 @@ Shaper<1024> shaper2;
 
 dspheaders::WaveTable wt;
 
+float x = 0,y = 0;
+
+uint8_t selected = 0;
 
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
 {
@@ -40,7 +36,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
         out[3][i] = 0.f;
         float s = wt.play();
         out[0][i] = s;
-        out[1][i] = shaper2.process(shaper.process(s));
+        out[1][i] = shaper2.process(shaper.process(s))*0.5 + s*0.5;
     }
 }
 
@@ -56,10 +52,14 @@ void UpdateOled()
     char*       cstr = &str[0];
     hw.display.SetCursor(0, 0);
     hw.display.WriteString(cstr, Font_7x10, true);
-    
-    for (int i = 0; i < 8; ++i) {
-       hw.display.DrawLine(i*16, 32, i*16, 16-ws[i]*16, true);    
-       hw.display.DrawLine(i*16, 64, i*16, 48-ws2[i]*48, true);    
+    uint_fast8_t x = 0;
+    uint_fast8_t y = 0;     
+    for (uint_fast8_t i = 0; i < 8; ++i) {
+       x = 16*i;
+       y = 32;
+       hw.display.DrawRect(x, y-ws[i]*16, 5+x, y, true, selected==i);
+       y = 63; 
+       hw.display.DrawRect(x, y-ws2[i]*16, 5+x, y, true, selected==i);
     }
 
     hw.display.Update();
@@ -67,23 +67,33 @@ void UpdateOled()
 
 void UpdateControls()
 {
-    hw.ProcessAnalogControls();
+    hw.ProcessAllControls();
 
     //knobs
     float ctrl = hw.GetKnobValue((DaisyPatch::Ctrl)0);
-    freq = powf(2.f,6.0f*ctrl) * 50.f + 30.f; //Hz
+    int32_t enc = hw.encoder.Increment();
+    if (enc)
+        selected = (selected + enc)&7;
+        
+    freq = powf(2.f,6.0f*ctrl) * 40.f; 
     wt.setFreq(freq);
-    x = hw.GetKnobValue((DaisyPatch::Ctrl)1);
-    y = hw.GetKnobValue((DaisyPatch::Ctrl)2);
-    shaper.setWeight(1, x);
-    shaper.setWeight(3, y); 
-    k = (k+1)%1024;
+    float ctrl1 = hw.GetKnobValue((DaisyPatch::Ctrl)1);
+    float ctrl2 = hw.GetKnobValue((DaisyPatch::Ctrl)2);
+
+    if (abs(x - ctrl1) > 0.01) { 
+        x = ctrl1;
+        shaper.setWeight(selected, x);
+    }
+    if (abs(y - ctrl2) > 0.01) {
+        y = ctrl2; 
+        shaper2.setWeight(selected, y); 
+    }
 }
 
 int main(void)
 {
     hw.Init();
-    hw.SetAudioBlockSize(4); // number of samples handled per callback
+    hw.SetAudioBlockSize(48); // number of samples handled per callback
     hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
     
     shaper.init();

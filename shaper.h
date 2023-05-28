@@ -3,6 +3,7 @@
 #include "daisysp.h"
 
 #include <array>
+#include <algorithm>
 
 namespace daisysp {
 
@@ -46,10 +47,11 @@ namespace daisysp {
     template <size_t N>
     class Shaper {
        
-        public: 
+        public:
+            Shaper(); 
             void init();
             float process(float in);
-            void setWeight(int n, float w);
+            void setWeight(const int n, const float w);
             const float * getWeights() const;
         private:
         
@@ -59,8 +61,13 @@ namespace daisysp {
 
 
     template <size_t N>
+    Shaper<N>::Shaper() {
+        static_assert(not (N & (N - 1)), "N not power of 2");
+    }
+
+    template <size_t N>
     void Shaper<N>::init() {
-        weights = {1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f};
+        std::fill(weights.begin(), weights.end(), 1.f); 
         m_inv_sum = std::accumulate(weights.begin(), weights.end(), 0.f);
     }
 
@@ -71,21 +78,34 @@ namespace daisysp {
 
     template <size_t N>
     float Shaper<N>::process(float in) {
-       const uint16_t ind = static_cast<float>(N) *  (in + 1.f)/2.f;
-       m_inv_sum = std::accumulate(weights.begin(), weights.end(), 0.f);
-       float s =  weights[0]*c1[ind]
-                + weights[1] * c2[ind]
-                + weights[2] * c3[ind]
-                + weights[3] * c4[ind]
-                + weights[4] * c5[ind]
-                + weights[5] * c6[ind]
-                + weights[6] * c7[ind]
-                + weights[7] * c8[ind];
-        return s/m_inv_sum;
+        in = fmin(fmax(-1.f, in), 1.f);
+        const float ind = static_cast<float>(N) *  (in + 1.f)/2.f;
+        const uint16_t int_ind = static_cast<uint16_t>(ind);
+        const float frac = ind - static_cast<float>(int_ind);
+        m_inv_sum = 1.f/std::accumulate(weights.begin(), weights.end(), 0.f);
+        float a = weights[0] * c1[int_ind]
+                + weights[1] * c2[int_ind]
+                + weights[2] * c3[int_ind]
+                + weights[3] * c4[int_ind]
+                + weights[4] * c5[int_ind]
+                + weights[5] * c6[int_ind]
+                + weights[6] * c7[int_ind]
+                + weights[7] * c8[int_ind];
+        const uint16_t ind2 = std::min<uint16_t>(N,int_ind+1);
+        float b = weights[0] * c1[ind2]
+                + weights[1] * c2[ind2]
+                + weights[2] * c3[ind2]
+                + weights[3] * c4[ind2]
+                + weights[4] * c5[ind2]
+                + weights[5] * c6[ind2]
+                + weights[6] * c7[ind2]
+                + weights[7] * c8[ind2];
+        float r = a + frac*(a-b);
+        return r*m_inv_sum;  
     }
 
     template <size_t N>
-    void Shaper<N>::setWeight(int n, float w) {
+    void Shaper<N>::setWeight(const int n, const float w) {
         weights[n] = w;
     }
 
