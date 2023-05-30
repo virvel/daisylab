@@ -34,16 +34,16 @@ namespace daisysp {
     template<std::size_t Length, size_t k>
     constexpr auto chebyshev_lut = lut<Length>(cheby<Length, k>);
 
-    constexpr int N = 1024;
-    constexpr auto c1 = chebyshev_lut<N,1>;
-    constexpr auto c2 = chebyshev_lut<N,2>;
-    constexpr auto c3 = chebyshev_lut<N,3>;
-    constexpr auto c4 = chebyshev_lut<N,4>;
-    constexpr auto c5 = chebyshev_lut<N,5>;
-    constexpr auto c6 = chebyshev_lut<N,6>;
-    constexpr auto c7 = chebyshev_lut<N,7>;
-    constexpr auto c8 = chebyshev_lut<N,8>;
-
+    constexpr int NN = 512;
+    constexpr auto c1 = chebyshev_lut<NN,1>;
+    constexpr auto c2 = chebyshev_lut<NN,2>;
+    constexpr auto c3 = chebyshev_lut<NN,3>;
+    constexpr auto c4 = chebyshev_lut<NN,4>;
+    constexpr auto c5 = chebyshev_lut<NN,5>;
+    constexpr auto c6 = chebyshev_lut<NN,6>;
+    constexpr auto c7 = chebyshev_lut<NN,7>;
+    constexpr auto c8 = chebyshev_lut<NN,8>;
+    
     template <size_t N>
     class Shaper {
        
@@ -53,6 +53,7 @@ namespace daisysp {
             float process(float in);
             void setWeight(const int n, const float w);
             const float * getWeights() const;
+            float * getWeights();
         private:
         
             std::array<float,8> weights;
@@ -67,7 +68,7 @@ namespace daisysp {
 
     template <size_t N>
     void Shaper<N>::init() {
-        std::fill(weights.begin(), weights.end(), 1.f); 
+        std::fill(weights.begin(), weights.end(), 0.f); 
         m_inv_sum = std::accumulate(weights.begin(), weights.end(), 0.f);
     }
 
@@ -76,6 +77,12 @@ namespace daisysp {
             return weights.data(); 
     }
 
+    template <size_t N>
+    float * Shaper<N>::getWeights() {
+            return weights.data(); 
+    }
+
+// TODO: Add better interpolation
     template <size_t N>
     float Shaper<N>::process(float in) {
         in = fmin(fmax(-1.f, in), 1.f);

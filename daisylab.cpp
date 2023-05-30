@@ -16,31 +16,47 @@ DaisyPatch hw;
 float freq = 440.f;
 
 Oscillator osc;
-Shaper<1024> shaper;
-Shaper<1024> shaper2;
+Shaper<512> shaper;
+Shaper<512> shaper2;
+ReverbSc rev;
 
-dspheaders::WaveTable wt;
+Oscillator sine;
 
+namespace pie {
+    constexpr float pi = 3.14159265358979323846f; 
+    constexpr float twopi = 2.f*pi; 
+}
+
+float waver[512];
 float x = 0,y = 0;
+float ph = 0.f;
+float inc = 0.00001f;
 
-uint8_t selected = 0;
+uint_fast8_t selected = 0;
+#define REV 1
 
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
 {
-    UpdateControls(); 
-    for (size_t i = 0; i < size; i++)
+    UpdateControls(); for (size_t i = 0; i < size; i++)
     {
         out[0][i] = 0.f;
         out[1][i] = 0.f;
         out[2][i] = 0.f;
         out[3][i] = 0.f;
-        float s = wt.play();
+        float s = sine.Process();
         out[0][i] = s;
         out[1][i] = shaper2.process(shaper.process(s))*0.5 + s*0.5;
+        float revL, revR; 
+        rev.Process(out[1][i], out[1][i], &revL, &revR); 
+        out[1][i] += revL;
+        float * ws = shaper.getWeights();
+        for (uint_fast8_t i = 0; i < 8; ++i) {
+             ws[i] = waver[(64*i + static_cast<int>(ph*512))%512]; 
+        }
+        ph = fmod(ph + inc, 1.f);
     }
 }
 
-    float r = 0.f;
 void UpdateOled()
 {
     hw.display.Fill(false);
@@ -49,7 +65,7 @@ void UpdateOled()
     const float * ws2 = shaper2.getWeights();
 
     std::string str  = std::to_string(int(freq));
-    char*       cstr = &str[0];
+    char* cstr = &str[0];
     hw.display.SetCursor(0, 0);
     hw.display.WriteString(cstr, Font_7x10, true);
     uint_fast8_t x = 0;
@@ -57,9 +73,9 @@ void UpdateOled()
     for (uint_fast8_t i = 0; i < 8; ++i) {
        x = 16*i;
        y = 32;
-       hw.display.DrawRect(x, y-ws[i]*16, 5+x, y, true, selected==i);
+       hw.display.DrawRect(x, y-ws[i]*16, 12+x, y, true, selected==i);
        y = 63; 
-       hw.display.DrawRect(x, y-ws2[i]*16, 5+x, y, true, selected==i);
+       hw.display.DrawRect(x, y-ws2[i]*16, 12+x, y, true, selected==i);
     }
 
     hw.display.Update();
@@ -71,14 +87,16 @@ void UpdateControls()
 
     //knobs
     float ctrl = hw.GetKnobValue((DaisyPatch::Ctrl)0);
-    int32_t enc = hw.encoder.Increment();
+    uint_fast8_t enc = hw.encoder.Increment();
     if (enc)
         selected = (selected + enc)&7;
         
     freq = powf(2.f,6.0f*ctrl) * 40.f; 
-    wt.setFreq(freq);
+    sine.SetFreq(freq);
     float ctrl1 = hw.GetKnobValue((DaisyPatch::Ctrl)1);
     float ctrl2 = hw.GetKnobValue((DaisyPatch::Ctrl)2);
+    float z = hw.GetKnobValue((DaisyPatch::Ctrl)3)/10e3;
+    inc = z;
 
     if (abs(x - ctrl1) > 0.01) { 
         x = ctrl1;
@@ -95,11 +113,19 @@ int main(void)
     hw.Init();
     hw.SetAudioBlockSize(48); // number of samples handled per callback
     hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
-    
+    rev.Init(48000); 
+    rev.SetFeedback(0.7);
+    rev.SetLpFreq(3000);
     shaper.init();
     shaper2.init();
-
-    wt.setWave(SINE);
+    sine.Init(48000);
+    sine.SetAmp(1.f);
+    sine.Reset();
+    constexpr float maxn = 512.f; 
+    for (int i = 0; i < 512; ++i) {
+        waver[i] = sin(pie::twopi*static_cast<float>(i)/maxn); 
+        waver[i] = waver[i] * waver[i];
+    }
  
     hw.StartAdc();
     hw.StartAudio(AudioCallback);
